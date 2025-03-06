@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Staff Time Tracker</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500;600;700&family=Poppins:wght@300;400;500;600&family=Fira+Code&display=swap" rel="stylesheet">
+    
+    <!-- Load Material Icons font from Google -->
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="title-container">
+                <img src="/assets/newcsnv3.gif" alt="CSN v3 Logo" class="logo-gif">
+                <h1>Staff Tracker</h1>
+            </div>
+            <div class="header-actions">
+                <button id="addUserBtn" class="btn primary"><span class="material-icons">person_add</span> Add User</button>
+                <button id="searchBtn" class="btn"><span class="material-icons">search</span> Search</button>
+                <a href="/api/export" class="btn"><span class="material-icons">file_download</span> Export</a>
+                <button id="importBtn" class="btn"><span class="material-icons">file_upload</span> Import</button>
+            </div>
+        </header>
+
+        <div class="filters-container">
+            <div class="filter-section">
+                <button id="filtersBtn" class="btn"><span class="material-icons">filter_list</span> Filters</button>
+                <div id="filtersDropdown" class="dropdown-content">
+                    <div class="dropdown-header">
+                        <h3>Filter Staff</h3>
+                        <button class="reset-filters-btn">Reset</button>
+                    </div>
+                    
+                    <div class="filter-group">
+                        <h4>By Rank</h4>
+                        <button class="toggle-all-btn" data-target="rank-filter">Toggle All</button>
+                        <div class="filter-options rank-filters">
+                            <% ranks.forEach(rank => { %>
+                                <label class="filter-checkbox">
+                                    <input type="checkbox" name="rank-filter" value="<%= rank %>">
+                                    <span><%= rank %></span>
+                                </label>
+                            <% }); %>
+                        </div>
+                    </div>
+                    
+                    <div class="filter-group">
+                        <h4>By Status</h4>
+                        <button class="toggle-all-btn" data-target="status-filter">Toggle All</button>
+                        <div class="filter-options status-filters">
+                            <label class="filter-checkbox">
+                                <input type="checkbox" name="status-filter" value="strikes">
+                                <span>Has Strikes</span>
+                            </label>
+                            <label class="filter-checkbox">
+                                <input type="checkbox" name="status-filter" value="watchlist">
+                                <span>On Watchlist</span>
+                            </label>
+                            <label class="filter-checkbox">
+                                <input type="checkbox" name="status-filter" value="purgatory">
+                                <span>In Purgatory</span>
+                            </label>
+                            <label class="filter-checkbox">
+                                <input type="checkbox" name="status-filter" value="expired">
+                                <span>Expired Strikes</span>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="filter-group">
+                        <h4>Time at Rank</h4>
+                        <div class="range-slider-container">
+                            <div class="range-labels">
+                                <span>0 days</span>
+                                <span>1 year</span>
+                            </div>
+                            <input type="range" id="timeRangeFilter" min="0" max="365" value="0" class="range-slider">
+                            <div class="range-value">
+                                <span>Minimum: <span id="timeRangeValue">0</span> days</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="filter-actions">
+                        <button id="applyFiltersBtn" class="btn primary">Apply Filters</button>
+                    </div>
+                </div>
+            </div>
+            
+            <button id="checkEligibleBtn" class="btn success">
+                <span class="material-icons">upgrade</span> Check Eligible
+            </button>
+        </div>
+
+        <main>
+            <div class="rank-tables">
+                <% 
+                // Check if we have any staff in any rank
+                let hasStaff = false;
+                ranks.forEach(rank => {
+                    if (staffByRank[rank] && staffByRank[rank].length > 0) {
+                        hasStaff = true;
+                    }
+                });
+                %>
+                
+                <% if (hasStaff) { %>
+                    <% ranks.forEach(rank => { %>
+                        <% if (staffByRank[rank] && staffByRank[rank].length > 0) { %>
+                            <div class="rank-section">
+                                <h2 class="rank-title"><%= rank %></h2>
+                                <table class="rank-table">
+                                    <thead>
+                                        <tr>
+                                            <th>User</th>
+                                            <th>Discord ID</th>
+                                            <th>Time at Rank</th>
+                                            <th>Date Promoted</th>
+                                            <th>Strikes</th>
+                                            <th>Status</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <% staffByRank[rank].forEach(staff => { %>
+                                            <% 
+                                                // Calculate number of strikes
+                                                let strikeCount = 0;
+                                                if (staff.strike1) strikeCount++;
+                                                if (staff.strike2) strikeCount++;
+                                                if (staff.strike3) strikeCount++;
+                                                
+                                                // Calculate if any strikes are expired
+                                                const now = new Date();
+                                                const expiredStrikes = [];
+                                                
+                                                if (staff.strike1 && staff.strike1Date) {
+                                                    const strikeDate = new Date(staff.strike1Date);
+                                                    const daysSince = Math.floor((now - strikeDate) / (1000 * 60 * 60 * 24));
+                                                    if (daysSince >= 30) {
+                                                        expiredStrikes.push(1);
+                                                    }
+                                                }
+                                                
+                                                if (staff.strike2 && staff.strike2Date) {
+                                                    const strikeDate = new Date(staff.strike2Date);
+                                                    const daysSince = Math.floor((now - strikeDate) / (1000 * 60 * 60 * 24));
+                                                    if (daysSince >= 30) {
+                                                        expiredStrikes.push(2);
+                                                    }
+                                                }
+                                                
+                                                if (staff.strike3 && staff.strike3Date) {
+                                                    const strikeDate = new Date(staff.strike3Date);
+                                                    const daysSince = Math.floor((now - strikeDate) / (1000 * 60 * 60 * 24));
+                                                    if (daysSince >= 30) {
+                                                        expiredStrikes.push(3);
+                                                    }
+                                                }
+                                                
+                                                // Determine row class based on status
+                                                let rowClass = '';
+                                                if (strikeCount > 0) rowClass += ' has-strikes';
+                                                if (staff.watchlist) rowClass += ' watchlisted';
+                                                if (staff.purgatory) rowClass += ' in-purgatory';
+                                                if (expiredStrikes.length > 0) rowClass += ' has-expired-strikes';
+                                            %>
+                                            <tr data-id="<%= staff.id %>" class="<%= rowClass %>">
+                                                <td><%= staff.name %></td>
+                                                <td><a href="https://discordlookup.com/user/<%= staff.discordId %>" target="_blank" rel="preload" rel="preconnect" rel="dns-prefetch" fetchpriority="high" style="color: var(--text-secondary); text-decoration: none;"><%= staff.discordId %></a></td>
+                                                <td class="time-at-rank" data-date="<%= staff.datePromoted %>"></td>
+                                                <td><%= new Date(staff.datePromoted).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) %></td>
+                                                <td class="strikes-cell">
+                                                    <% if (strikeCount > 0) { %>
+                                                        <div class="strikes-indicator">
+                                                            <%= 'I'.repeat(strikeCount) %>
+                                                            <% if (expiredStrikes.length > 0) { %>
+                                                                <span class="expired-indicator" title="Contains expired strikes that need review">!</span>
+                                                            <% } %>
+                                                        </div>
+                                                    <% } else { %>
+                                                        -
+                                                    <% } %>
+                                                </td>
+                                                <td class="status-cell">
+                                                    <div class="status-wrapper">
+                                                    <% if (staff.watchlist) { %>
+                                                        <span class="status-indicator watchlist-indicator" title="Watchlisted: <%= staff.watchlistReason %>">
+                                                            <span class="material-icons">warning</span>
+                                                        </span>
+                                                    <% } %>
+                                                    <% if (staff.purgatory) { %>
+                                                        <span class="status-indicator purgatory-indicator" title="In Purgatory">
+                                                            <span class="emoji">🏊</span>
+                                                        </span>
+                                                    <% } %>
+                                                    <% if (!staff.watchlist && !staff.purgatory) { %>
+                                                        -
+                                                    <% } %>
+                                                </div>
+                                                </td>
+                                                <td class="action-cell">
+                                                    <button class="action-btn edit-btn" data-id="<%= staff.id %>" title="Edit">
+                                                        <span class="material-icons">edit</span>
+                                                    </button>
+                                                    <button class="action-btn delete-btn" data-id="<%= staff.id %>" title="Delete">
+                                                        <span class="material-icons">delete</span>
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        <% }) %>
+                                    </tbody>
+                                </table>
+                            </div>
+                        <% } %>
+                    <% }) %>
+                <% } else { %>
+                    <div class="empty-state">
+                        <div class="empty-state-icon">
+                            <span class="material-icons">people</span>
+                        </div>
+                        <div class="empty-state-text">No staff members added yet</div>
+                        <button id="emptyAddBtn" class="btn primary">
+                            <span class="material-icons">person_add</span> Add Staff Member
+                        </button>
+                    </div>
+                <% } %>
+            </div>
+        </main>
+
+        <!-- Add/Edit User Modal -->
+        <div id="userModal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 id="modalTitle">Add New Staff Member</h2>
+                    <button id="closeUserModal" class="close-btn" aria-label="Close"></button>
+                </div>
+                <form id="userForm">
+                    <input type="hidden" id="userId" name="id">
+                    
+                    <h3 class="form-section-title">Basic Information</h3>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="name">Name:</label>
+                            <input type="text" id="name" name="name" placeholder="Full Name" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="discordId">Discord ID:</label>
+                            <input type="text" id="discordId" name="discordId" placeholder="Discord ID (numeric)" required>
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="rank">Rank:</label>
+                            <select id="rank" name="rank" required>
+                                <% ranks.forEach(rank => { %>
+                                    <option value="<%= rank %>"><%= rank %></option>
+                                <% }); %>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="datePromoted">Date Promoted:</label>
+                            <input type="date" id="datePromoted" name="datePromoted" required>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group-section">
+                        <h3>Disciplinary Actions</h3>
+                        
+                        <div class="disciplinary-checkboxes">
+                            <div class="form-group">
+                                <label class="checkbox-label">
+                                    <input type="checkbox" id="strike1" name="strike1">
+                                    <span>Strike 1</span>
+                                </label>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="checkbox-label">
+                                    <input type="checkbox" id="strike2" name="strike2">
+                                    <span>Strike 2</span>
+                                </label>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="checkbox-label">
+                                    <input type="checkbox" id="strike3" name="strike3">
+                                    <span>Strike 3</span>
+                                </label>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="checkbox-label danger-checkbox">
+                                    <input type="checkbox" id="purgatory" name="purgatory">
+                                    <span><span class="emoji">🏊</span> Purgatory</span>
+                                </label>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="checkbox-label warning-checkbox">
+                                    <input type="checkbox" id="watchlist" name="watchlist">
+                                    <span><span class="material-icons">warning</span> Watchlist</span>
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <!-- Strike date fields -->
+                        <div class="conditional-field" id="strike1Fields">
+                            <div class="form-group">
+                                <label for="strike1Date">Strike 1 Date:</label>
+                                <input type="date" id="strike1Date" name="strike1Date">
+                                <div class="strike-info" id="strike1Info"></div>
+                            </div>
+                        </div>
+                        
+                        <div class="conditional-field" id="strike2Fields">
+                            <div class="form-group">
+                                <label for="strike2Date">Strike 2 Date:</label>
+                                <input type="date" id="strike2Date" name="strike2Date">
+                                <div class="strike-info" id="strike2Info"></div>
+                            </div>
+                        </div>
+                        
+                        <div class="conditional-field" id="strike3Fields">
+                            <div class="form-group">
+                                <label for="strike3Date">Strike 3 Date:</label>
+                                <input type="date" id="strike3Date" name="strike3Date">
+                                <div class="strike-info" id="strike3Info"></div>
+                            </div>
+                        </div>
+                        
+                        <div class="conditional-field" id="watchlistFields">
+                            <div class="form-group">
+                                <label for="watchlistReason">Watchlist Reason:</label>
+                                <textarea id="watchlistReason" name="watchlistReason" placeholder="Enter reason for watchlist"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="button-group">
+                        <button type="submit" id="submitUser" class="btn primary">Add User</button>
+                        <button type="button" id="cancelUserModal" class="btn">Cancel</button>
+                        <button type="button" id="generateReportBtn" class="btn success">
+                            <span class="material-icons">description</span> Generate Report
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Import Modal -->
+        <div id="importModal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>Import Staff Data</h2>
+                    <button id="closeImportModal" class="close-btn" aria-label="Close"></button>
+                </div>
+                <form id="importForm">
+                    <h3 class="form-section-title">Data Import</h3>
+                    <div class="form-group">
+                        <label for="jsonData">Paste JSON Data:</label>
+                        <textarea id="jsonData" name="data" rows="10" class="json-input" required placeholder="Paste your JSON data here..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <p class="warning-text"><span class="material-icons" style="font-size: 16px; vertical-align: middle; margin-right: 5px;">warning</span> This will replace all existing staff data.</p>
+                    </div>
+                    <div class="button-group">
+                        <button type="submit" class="btn primary">Import Data</button>
+                        <button type="button" id="cancelImportModal" class="btn">Cancel</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Search Modal -->
+        <div id="searchModal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>Search Staff</h2>
+                    <button id="closeSearchModal" class="close-btn" aria-label="Close"></button>
+                </div>
+                <div class="search-input-container">
+                    <input type="text" id="searchInput" class="search-input" placeholder="Search staff by name, rank, Discord ID, or date...">
+                    <span class="material-icons search-icon">search</span>
+                </div>
+                <div id="searchResults" class="search-results">
+                    <!-- Search results will be populated by JavaScript -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Eligible Staff Modal -->
+        <div id="eligibleModal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>Eligible for Promotion</h2>
+                    <button id="closeEligibleModal" class="close-btn" aria-label="Close"></button>
+                </div>
+                <div class="eligible-summary">
+                    <div class="eligible-icon">
+                        <span class="material-icons">trending_up</span>
+                    </div>
+                    <p id="eligibleCount" class="eligible-count"></p>
+                </div>
+                <div id="eligibleResults" class="eligible-results">
+                    <!-- Eligible staff members will be populated by JavaScript -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Report Type Modal -->
+        <div id="reportTypeModal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>Select Report Type</h2>
+                    <button class="close-btn" id="closeReportTypeModal">×</button>
+                </div>
+                <div class="report-type-options">
+                    <button id="staffLeadershipBtn" class="report-type-btn">
+                        <i class="material-icons">assignment</i>
+                        Staff Leadership Report
+                    </button>
+                    <button id="needsPermsBtn" class="report-type-btn">
+                        <i class="material-icons">gavel</i>
+                        Needs Perms Report
+                    </button>
+                    <button id="staffRemovalBtn" class="report-type-btn">
+                        <i class="material-icons">person_remove</i>
+                        Staff Removal Request
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Generated Report Modal -->
+        <div id="generatedReportModal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 id="reportTitle">Generated Report</h2>
+                    <button class="close-btn" id="closeGeneratedReportModal">×</button>
+                </div>
+                <div class="report-content">
+                    <pre class="report-code-block" id="reportText"></pre>
+                </div>
+                <div class="report-actions">
+                    <button class="btn" id="copyReportBtn">Copy to Clipboard</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/script.js"></script>
+</body>
+</html> 
