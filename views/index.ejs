@@ -178,7 +178,7 @@
                                                 <td><%= new Date(staff.datePromoted).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) %></td>
                                                 <td class="strikes-cell">
                                                     <% if (strikeCount > 0) { %>
-                                                        <div class="strikes-indicator">
+                                                        <div class="strikes-indicator" title="Striked: <%= strikeCount %> strikes">
                                                             <%= 'I'.repeat(strikeCount) %>
                                                             <% if (expiredStrikes.length > 0) { %>
                                                                 <span class="expired-indicator" title="Contains expired strikes that need review">!</span>

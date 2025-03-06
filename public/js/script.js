@@ -1,6 +1,5 @@
 /* TODO:
     - Implement Database Connection
-    - Implement 
 */
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -346,9 +345,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Include status information in search
             const statusCell = row.querySelector('.status-cell');
+            const strikeCell = row.querySelector('.strikes-cell');
             let status = '';
 
-            if (statusCell) {
+            if (statusCell || strikeCell) {
                 const watchlistIndicator = statusCell.querySelector('.watchlist-indicator');
                 if (watchlistIndicator) {
                     status += 'watchlist ';
@@ -360,6 +360,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 const purgatoryIndicator = statusCell.querySelector('.purgatory-indicator');
                 if (purgatoryIndicator) {
                     status += 'purgatory ';
+                }
+
+                const strikeIndicator = strikeCell.querySelector('.strikes-indicator');
+                if (strikeIndicator) {
+                    status += 'strike ';
+                    // Include strike reason in search
+                    const reason = strikeIndicator.getAttribute('title');
+                    if (reason) status += reason.toLowerCase() + ' ';
                 }
             }
 
