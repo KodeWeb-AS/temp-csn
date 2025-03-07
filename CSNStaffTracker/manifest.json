@@ -1,0 +1,13 @@
+{
+  "manifest_version": 3,
+  "name": "CSN Staff Tracker",
+  "version": "1.0",
+  "description": "Track and manage CSN staff members",
+  "permissions": ["storage"],
+  "action": {
+    "default_popup": "popup.html"
+  },
+  "background": {
+    "service_worker": "background.js"
+  }
+} 
