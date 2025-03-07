@@ -373,21 +373,35 @@ async function loadEligiblePromotions() {
       </div>
     `;
     
-    const response = await fetch(`${API_BASE_URL}/staff/eligible-promotions`);
+    console.log('Attempting to fetch eligible promotions from:', `${API_BASE_URL}/eligible-promotions`);
+    
+    const response = await fetch(`${API_BASE_URL}/eligible-promotions`, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    console.log('Eligible promotions response status:', response.status);
     
     if (!response.ok) {
-      throw new Error('Failed to load eligible promotions');
+      const errorText = await response.text();
+      console.error('API error response:', errorText);
+      throw new Error(`API returned status ${response.status}: ${errorText}`);
     }
     
     const eligibleStaff = await response.json();
+    console.log('Received eligible promotions data:', eligibleStaff);
     displayEligiblePromotions(eligibleStaff);
   } catch (error) {
+    console.error('Detailed error loading eligible promotions:', error);
     promotionsContainer.innerHTML = `
       <div class="empty-state">
         <p>Error loading eligible promotions: ${error.message}</p>
+        <p>Please check the console for more details.</p>
       </div>
     `;
-    console.error('Error loading eligible promotions:', error);
   }
 }
 

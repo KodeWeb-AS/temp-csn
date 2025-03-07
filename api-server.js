@@ -180,23 +180,31 @@ app.put('/api/staff/:id', (req, res) => {
   }
 });
 
-// Get eligible promotions endpoint
-// Note: Make sure this is defined AFTER the /api/staff/:id endpoint to avoid conflicts
-app.get('/api/staff/eligible-promotions', (req, res) => {
+// Create a special test endpoint to verify the eligible promotions API
+app.get('/api/test-eligible-promotions', (req, res) => {
+  res.json({ status: 'ok', message: 'Eligible promotions endpoint test is working' });
+});
+
+// Move the eligible promotions endpoint to a different URL to avoid route conflicts
+app.get('/api/eligible-promotions', (req, res) => {
+  console.log('Eligible promotions endpoint called');
+  
   try {
     const staffData = getStaffData();
+    console.log(`Processing ${staffData.length} staff members for promotion eligibility`);
     
     if (!staffData || !Array.isArray(staffData)) {
       return res.status(500).json({ error: 'Invalid staff data format' });
     }
     
     const today = new Date();
+    console.log('Current date for eligibility check:', today.toISOString());
     
     // Define promotion rules
     const promotionRules = {
       'Trial Moderator': {
         targetRank: 'Moderator',
-        minDays: 14, // 2 weeks
+        minDays: 14,
         checkFunction: (staff) => {
           try {
             if (!staff.datePromoted) return false;
@@ -220,7 +228,7 @@ app.get('/api/staff/eligible-promotions', (req, res) => {
       },
       'Trial Discord Support': {
         targetRank: 'Discord Support',
-        minDays: 14, // 2 weeks
+        minDays: 14,
         checkFunction: (staff) => {
           try {
             if (!staff.datePromoted) return false;
@@ -244,7 +252,7 @@ app.get('/api/staff/eligible-promotions', (req, res) => {
       },
       'Moderator': {
         targetRank: 'Senior Moderator',
-        minDays: 30, // 1 month
+        minDays: 30,
         checkFunction: (staff) => {
           try {
             if (!staff.datePromoted) return false;
@@ -269,7 +277,7 @@ app.get('/api/staff/eligible-promotions', (req, res) => {
       },
       'Paid Permissions': {
         targetRank: 'Trial Moderator',
-        minDays: 30, // 1 month
+        minDays: 30,
         checkFunction: (staff) => {
           try {
             if (!staff.datePromoted) return false;
@@ -318,10 +326,11 @@ app.get('/api/staff/eligible-promotions', (req, res) => {
       });
     });
     
+    console.log('Eligible promotions results:', JSON.stringify(eligiblePromotions, null, 2).substring(0, 200) + '...');
     res.json(eligiblePromotions);
   } catch (error) {
     console.error('Eligible promotions error:', error);
-    res.status(500).json({ error: 'Server error processing eligible promotions' });
+    res.status(500).json({ error: 'Server error processing eligible promotions: ' + error.message });
   }
 });
 
@@ -333,5 +342,5 @@ app.listen(PORT, () => {
   console.log(`- Search staff: GET http://localhost:${PORT}/api/staff/search?q={query}`);
   console.log(`- Get staff: GET http://localhost:${PORT}/api/staff/{id}`);
   console.log(`- Update staff: PUT http://localhost:${PORT}/api/staff/{id}`);
-  console.log(`- Eligible promotions: GET http://localhost:${PORT}/api/staff/eligible-promotions`);
+  console.log(`- Eligible promotions: GET http://localhost:${PORT}/api/eligible-promotions`);
 }); 
