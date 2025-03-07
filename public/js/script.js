@@ -9,12 +9,14 @@ document.addEventListener('DOMContentLoaded', () => {
         'High Staff',
         'Senior Administrator',
         'Administrator',
+        'Department Council',
         'Staff Supervisor',
         'Senior Moderator',
         'Moderator',
         'Trial Moderator',
         'Discord Support',
         'Trial Discord Support',
+        'Paid Permissions',
         'Needs Training'
     ];
 
