@@ -752,22 +752,6 @@
     "purgatory": true
   },
   {
-    "id": "1740698587448",
-    "name": "E. Tritt",
-    "discordId": "986036204304736296",
-    "rank": "Trial Moderator",
-    "datePromoted": "2025-02-17",
-    "strike1": false,
-    "strike1Date": null,
-    "strike2": false,
-    "strike2Date": null,
-    "strike3": false,
-    "strike3Date": null,
-    "watchlist": true,
-    "watchlistReason": "Abuse of Perms",
-    "purgatory": false
-  },
-  {
     "id": "1740698587449",
     "name": "Aidyn",
     "discordId": "977239557814775829",
@@ -3313,7 +3297,7 @@
   },
   {
     "id": "1741308289738526",
-    "name": "mikesmithcsn",
+    "name": "Mike Smith",
     "discordId": "916090156354785310",
     "rank": "Department Council",
     "datePromoted": "2025-03-07",
