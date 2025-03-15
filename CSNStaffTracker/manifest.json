@@ -5,9 +5,17 @@
   "description": "Track and manage CSN staff members",
   "permissions": ["storage"],
   "action": {
-    "default_popup": "popup.html"
+    "default_popup": "popup.html",
+    "default_icon": {
+      "128": "icons/logo128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/logo16.png",
+    "48": "icons/logo48.png",
+    "128": "icons/logo128.png"
   },
   "background": {
     "service_worker": "background.js"
   }
-} 
+}
