@@ -174,72 +174,107 @@ h1::after {
 
 /* Rank Tables */
 .rank-section {
-    margin-bottom: 20px;
-    background-color: var(--card-color);
+    background: var(--surface-color);
     border-radius: var(--radius-lg);
-    overflow: hidden;
-    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+    box-shadow: var(--shadow-md);
+    border: 1px solid var(--border-color);
+    transition: all 0.3s ease;
 }
 
 .rank-section:hover {
-    transform: translateY(-5px);
     box-shadow: var(--shadow-lg);
+    transform: translateY(-2px);
 }
 
 .rank-title {
-    font-size: 22px;
-    padding: 20px;
-    background-color: rgba(0, 0, 0, 0.2);
+    font-family: 'Lexend', sans-serif;
+    font-size: 1.5rem;
+    font-weight: 600;
     color: var(--primary-light);
-    border-bottom: 1px solid var(--border-color);
+    margin-bottom: 1.5rem;
+    padding-bottom: 0.75rem;
+    position: relative;
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 0.5rem;
 }
 
 .rank-title::before {
     content: '';
-    display: inline-block;
-    width: 8px;
-    height: 20px;
-    background-color: var(--primary-color);
-    border-radius: 4px;
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 2px;
+    background: linear-gradient(90deg, var(--primary-light) 0%, transparent 100%);
+    border-radius: 2px;
 }
 
 .rank-table {
     width: 100%;
-    border-collapse: collapse;
-    background-color: var(--card-color);
-    color: var(--text-secondary);
+    border-collapse: separate;
+    border-spacing: 0;
+    margin-top: 1rem;
 }
 
 .rank-table th,
 .rank-table td {
-    padding: 16px 20px;
+    padding: 1rem;
     text-align: left;
+    border-bottom: 1px solid var(--border-color);
 }
 
 .rank-table th {
-    background-color: rgba(0, 0, 0, 0.1);
-    font-weight: 600;
-    color: var(--secondary-text);
-    font-size: 14px;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
     font-family: 'Lexend', sans-serif;
+    font-weight: 500;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    font-size: 0.875rem;
+    letter-spacing: 0.5px;
+    background: var(--surface-color-alt);
 }
 
-.rank-table tr {
-    border-bottom: 1px solid var(--border-color);
-    transition: background-color 0.2s;
+.rank-table thead {
+    position: sticky;
+    top: 0;
+    z-index: 10;
 }
 
-.rank-table tr:last-child {
+.rank-table thead tr {
+    background: var(--surface-color-alt);
+    border-radius: var(--radius-md) var(--radius-md) 0 0;
+}
+
+.rank-table thead th:first-child {
+    border-top-left-radius: var(--radius-md);
+}
+
+.rank-table thead th:last-child {
+    border-top-right-radius: var(--radius-md);
+}
+
+.rank-table tbody tr {
+    transition: all 0.2s ease;
+}
+
+.rank-table tbody tr:hover {
+    background-color: var(--surface-color-alt);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.rank-table tbody tr:last-child td {
     border-bottom: none;
 }
 
-.rank-table tr:hover {
-    background-color: rgba(255, 255, 255, 0.05);
+.rank-table tbody tr:last-child td:first-child {
+    border-bottom-left-radius: var(--radius-md);
+}
+
+.rank-table tbody tr:last-child td:last-child {
+    border-bottom-right-radius: var(--radius-md);
 }
 
 .time-at-rank {
@@ -741,9 +776,19 @@ textarea.json-input {
         gap: 8px;
     }
 
-    .rank-table {
-        display: block;
-        overflow-x: auto;
+    .rank-section {
+        padding: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .rank-title {
+        font-size: 1.25rem;
+        margin-bottom: 1rem;
+    }
+
+    .rank-table th,
+    .rank-table td {
+        padding: 0.75rem;
     }
 
     .modal-content {
@@ -2143,7 +2188,8 @@ tr.eligible-row {
     border: 1px solid rgba(99, 102, 241, 0.3);
     position: relative;
     overflow: hidden;
-    margin-left: auto; /* Push to the right */
+    margin-left: auto;
+    /* Push to the right */
 }
 
 #generateReportBtn::before {
@@ -2153,11 +2199,9 @@ tr.eligible-row {
     left: -50%;
     width: 200%;
     height: 200%;
-    background: radial-gradient(
-        circle at 30% 30%,
-        rgba(99, 102, 241, 0.05) 0%,
-        rgba(99, 102, 241, 0) 70%
-    );
+    background: radial-gradient(circle at 30% 30%,
+            rgba(99, 102, 241, 0.05) 0%,
+            rgba(99, 102, 241, 0) 70%);
     pointer-events: none;
 }
 
@@ -2201,11 +2245,9 @@ tr.eligible-row {
     left: -50%;
     width: 200%;
     height: 200%;
-    background: radial-gradient(
-        circle at 30% 30%,
-        rgba(99, 102, 241, 0.05) 0%,
-        rgba(99, 102, 241, 0) 70%
-    );
+    background: radial-gradient(circle at 30% 30%,
+            rgba(99, 102, 241, 0.05) 0%,
+            rgba(99, 102, 241, 0) 70%);
     pointer-events: none;
 }
 
@@ -2278,7 +2320,8 @@ tr.eligible-row {
 #reportTypeModal.show,
 #generatedReportModal.show {
     display: flex;
-    z-index: 1100; /* Higher z-index to ensure visibility */
+    z-index: 1100;
+    /* Higher z-index to ensure visibility */
 }
 
 #reportTypeModal .modal-content,
@@ -2322,7 +2365,8 @@ tr.eligible-row {
 
 /* Ensure the Staff Removal button has the same styling with a specific accent color */
 #staffRemovalBtn {
-    border-left-color: #e11d48; /* A reddish color for removal */
+    border-left-color: #e11d48;
+    /* A reddish color for removal */
 }
 
 #staffRemovalBtn:hover {
@@ -2331,4 +2375,131 @@ tr.eligible-row {
 
 #staffRemovalBtn .material-icons {
     color: #e11d48;
+}
+
+.navbar {
+    background-color: var(--surface-color);
+    border-bottom: 1px solid var(--border-color);
+    padding: 0.5rem 1rem;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.nav-link {
+    color: var(--text-secondary);
+    text-decoration: none;
+    padding: 0.5rem 1rem;
+    border-radius: var(--radius-sm);
+    transition: all 0.2s ease;
+}
+
+.nav-link:hover {
+    background-color: var(--hover-color);
+}
+
+.nav-link.active {
+    color: var(--primary-color);
+    background-color: var(--primary-light);
+}
+
+/* Logs Section Styles */
+.logs-section {
+    background: var(--surface-color);
+    border-radius: 8px;
+    padding: 20px;
+    margin-top: 20px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.logs-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.logs-header h2 {
+    margin: 0;
+    color: var(--text-color);
+}
+
+.logs-filters {
+    display: flex;
+    gap: 10px;
+}
+
+.logs-container {
+    max-height: 500px;
+    overflow-y: auto;
+    background: var(--background-color);
+    border-radius: 4px;
+    padding: 10px;
+}
+
+.log-entry {
+    padding: 8px;
+    border-bottom: 1px solid var(--border-color);
+    font-family: 'Fira Code', monospace;
+    font-size: 0.9em;
+}
+
+.log-entry:last-child {
+    border-bottom: none;
+}
+
+.log-entry.debug {
+    color: var(--text-muted);
+}
+
+.log-entry.info {
+    color: var(--text-color);
+}
+
+.log-entry.warn {
+    color: var(--warning-color);
+}
+
+.log-entry.error {
+    color: var(--error-color);
+}
+
+.log-timestamp {
+    color: var(--text-muted);
+    margin-right: 8px;
+}
+
+.log-level {
+    font-weight: bold;
+    margin-right: 8px;
+}
+
+.log-message {
+    color: var(--text-color);
+}
+
+.log-data {
+    margin-top: 4px;
+    padding-left: 20px;
+    color: var(--text-muted);
+    font-size: 0.85em;
+}
+
+/* Scrollbar Styles for Logs Container */
+.logs-container::-webkit-scrollbar {
+    width: 8px;
+}
+
+.logs-container::-webkit-scrollbar-track {
+    background: var(--background-color);
+}
+
+.logs-container::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 4px;
+}
+
+.logs-container::-webkit-scrollbar-thumb:hover {
+    background: var(--text-muted);
 }

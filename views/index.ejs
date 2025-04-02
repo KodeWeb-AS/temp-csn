@@ -12,6 +12,9 @@
     <!-- Load Material Icons font from Google -->
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <link rel="stylesheet" href="/css/styles.css">
+
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 </head>
 <body>
     <div class="container">
@@ -25,6 +28,7 @@
                 <button id="searchBtn" class="btn"><span class="material-icons">search</span> Search</button>
                 <a href="/api/export" class="btn"><span class="material-icons">file_download</span> Export</a>
                 <button id="importBtn" class="btn"><span class="material-icons">file_upload</span> Import</button>
+                <button id="logsBtn" class="btn secondary">Logs</button>
             </div>
         </header>
 
@@ -231,6 +235,25 @@
                         </button>
                     </div>
                 <% } %>
+            </div>
+
+            <div class="logs-section" style="display: none;">
+                <div class="logs-header">
+                    <h2>System Logs</h2>
+                    <div class="logs-filters">
+                        <select id="logLevelFilter">
+                            <option value="">All Levels</option>
+                            <option value="DEBUG">Debug</option>
+                            <option value="INFO">Info</option>
+                            <option value="WARN">Warn</option>
+                            <option value="ERROR">Error</option>
+                        </select>
+                        <button id="clearLogsBtn" class="btn secondary">Clear Logs</button>
+                    </div>
+                </div>
+                <div class="logs-container">
+                    <!-- Logs will be dynamically inserted here -->
+                </div>
             </div>
         </main>
 
@@ -458,6 +481,6 @@
         </div>
     </div>
 
-    <script src="/js/script.js"></script>
+    <script type="module" src="/js/script.js"></script>
 </body>
 </html> 

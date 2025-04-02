@@ -3,10 +3,19 @@
   "name": "CSN Staff Tracker",
   "version": "1.0",
   "description": "Track and manage CSN staff members",
-  "permissions": ["storage"],
+  "permissions": [
+    "storage",
+    "activeTab"
+  ],
+  "host_permissions": [
+    "http://localhost:3000/*",
+    "http://localhost:3001/*"
+  ],
   "action": {
     "default_popup": "popup.html",
     "default_icon": {
+      "16": "icons/logo16.png",
+      "48": "icons/logo48.png",
       "128": "icons/logo128.png"
     }
   },
@@ -17,5 +26,8 @@
   },
   "background": {
     "service_worker": "background.js"
+  },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'"
   }
 }

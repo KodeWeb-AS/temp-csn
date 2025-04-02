@@ -1,5 +1,8 @@
 // Configuration
-const API_BASE_URL = 'http://localhost:3001/api';
+let API_BASE_URL = 'http://localhost:3001/api';
+
+// Import logger
+import logger from './utils/logger.js';
 
 // Staff ranks in order (from highest to lowest)
 const STAFF_RANKS = [
@@ -18,15 +21,27 @@ const STAFF_RANKS = [
   'Needs Training'
 ];
 
-// DOM Elements
+// -----------------------
+// DOM Element References
+// -----------------------
 const connectionStatus = document.getElementById('connectionStatus');
 const statusText = connectionStatus.querySelector('.status-text');
 const statusDot = connectionStatus.querySelector('.status-dot');
+
 const tabButtons = document.querySelectorAll('.tab-btn');
 const tabContents = document.querySelectorAll('.tab-content');
+
 const searchInput = document.getElementById('searchInput');
 const resultsContainer = document.getElementById('resultsContainer');
 const promotionsContainer = document.getElementById('promotionsContainer');
+const logsContainer = document.getElementById('logsContainer');
+const logsContent = document.getElementById('logsContent');
+const logLevelFilter = document.getElementById('logLevelFilter');
+const clearLogsBtn = document.getElementById('clearLogsBtn');
+
+const refreshBtn = document.getElementById('refreshBtn');
+const settingsBtn = document.getElementById('settingsBtn');
+
 const staffModal = document.getElementById('staffModal');
 const modalStaffName = document.getElementById('modalStaffName');
 const staffForm = document.getElementById('staffForm');
@@ -34,8 +49,8 @@ const closeModalBtn = document.getElementById('closeModal');
 const saveStaffBtn = document.getElementById('saveStaffBtn');
 const cancelStaffBtn = document.getElementById('cancelStaffBtn');
 
-// Form Elements
-const staffId = document.getElementById('staffId');
+// Staff form fields
+const staffIdField = document.getElementById('staffId');
 const staffDiscordId = document.getElementById('staffDiscordId');
 const staffRank = document.getElementById('staffRank');
 const staffDatePromoted = document.getElementById('staffDatePromoted');
@@ -50,214 +65,172 @@ const staffWatchlistReason = document.getElementById('staffWatchlistReason');
 const watchlistReasonGroup = document.getElementById('watchlistReasonGroup');
 const staffPurgatory = document.getElementById('staffPurgatory');
 
-// Variables
+// Settings Modal Elements
+const settingsModal = document.getElementById('settingsModal');
+const closeSettingsModal = document.getElementById('closeSettingsModal');
+const cancelSettingsBtn = document.getElementById('cancelSettingsBtn');
+const saveSettingsBtn = document.getElementById('saveSettingsBtn');
+
+const apiUrlInput = document.getElementById('apiUrl');
+const showStrikesCheckbox = document.getElementById('showStrikes');
+const showWatchlistCheckbox = document.getElementById('showWatchlist');
+const showPurgatoryCheckbox = document.getElementById('showPurgatory');
+const logLevelSelect = document.getElementById('logLevel');
+
+// -----------------------
+// Global Variables
+// -----------------------
 let currentStaffMember = null;
 let activeTab = 'search';
 let allStaffData = [];
 
+// -----------------------
 // Initialization
+// -----------------------
 document.addEventListener('DOMContentLoaded', () => {
   initializeApp();
   setupEventListeners();
+  logger.info('CSN Staff Tracker initialized');
 });
 
-// Initialize the app
+// -----------------------
+// App Initialization
+// -----------------------
 async function initializeApp() {
   checkApiConnection();
   updateWatchlistReasonVisibility();
-  
-  // Load all staff members on initialization
   await loadAllStaff();
+  // Removed displayLogs() from here so logs are loaded only when the Logs tab is active.
 }
 
-// Set up event listeners
+// -----------------------
+// Event Listeners Setup
+// -----------------------
 function setupEventListeners() {
   // Tab switching
-  tabButtons.forEach(btn => {
-    btn.addEventListener('click', () => {
-      switchTab(btn.dataset.tab);
-    });
-  });
+  tabButtons.forEach(btn =>
+    btn.addEventListener('click', () => switchTab(btn.dataset.tab))
+  );
 
-  // Search functionality
+  // Search input
   searchInput.addEventListener('input', debounce(handleSearch, 300));
 
-  // Modal events
+  // Modal controls
   closeModalBtn.addEventListener('click', closeModal);
   cancelStaffBtn.addEventListener('click', closeModal);
-  saveStaffBtn.addEventListener('click', saveStaffChanges);
-  
-  // Form events
+  saveStaffBtn.addEventListener('click', saveStaffMember);
+
+  // Form controls
   staffWatchlist.addEventListener('change', updateWatchlistReasonVisibility);
-  
-  // Strike date toggles
-  staffStrike1.addEventListener('change', () => toggleDateInput(staffStrike1, staffStrike1Date));
-  staffStrike2.addEventListener('change', () => toggleDateInput(staffStrike2, staffStrike2Date));
-  staffStrike3.addEventListener('change', () => toggleDateInput(staffStrike3, staffStrike3Date));
+
+  // Log controls
+  logLevelFilter.addEventListener('change', loadLogsFromApi);
+  clearLogsBtn.addEventListener('click', () => {
+    logger.clearLogs();
+    loadLogsFromApi();
+    logger.info('Logs cleared');
+  });
+
+  // Header actions
+  refreshBtn.addEventListener('click', async () => {
+    logger.info('Refreshing data');
+    await loadAllStaff();
+    if (activeTab === 'promotions') {
+      await loadEligiblePromotions();
+    }
+  });
+
+  settingsBtn.addEventListener('click', () => {
+    settingsModal.style.display = 'block';
+    logger.logModalAction('settings', 'open');
+  });
+
+  // Settings Modal Event Listeners
+  closeSettingsModal.addEventListener('click', () => {
+    settingsModal.style.display = 'none';
+    logger.logModalAction('settings', 'close');
+  });
+  cancelSettingsBtn.addEventListener('click', () => {
+    settingsModal.style.display = 'none';
+    logger.logModalAction('settings', 'cancel');
+  });
+  saveSettingsBtn.addEventListener('click', saveSettings);
 }
 
-// Load all staff members
+// -----------------------
+// API & Data Loading Functions
+// -----------------------
 async function loadAllStaff() {
   try {
-    // Show loading state
-    resultsContainer.innerHTML = `
-      <div class="loading">
-        <div class="spinner"></div>
-        <p>Loading staff members...</p>
-      </div>
-    `;
-    
-    // Fetch all staff - this is a new endpoint we might need to add to the API
-    // For now, we'll use the search with an empty query to get all staff
-    const response = await fetch(`${API_BASE_URL}/staff/search?q=`);
-    
-    if (!response.ok) {
-      throw new Error('Failed to load staff members');
-    }
-    
+    const startTime = performance.now();
+    const response = await fetch(`${API_BASE_URL}/staff/search`);
+    if (!response.ok) throw new Error('Failed to load staff data');
     allStaffData = await response.json();
-    
-    // Display staff by rank
-    displayStaffByRank(allStaffData);
+    logger.logApiCall('/staff/search', 'GET', response.status, performance.now() - startTime);
+    if (activeTab === 'search') {
+      displayStaffByRank(allStaffData);
+    }
   } catch (error) {
-    console.error('Error loading staff members:', error);
-    resultsContainer.innerHTML = `
-      <div class="empty-state">
-        <p>Error loading staff members: ${error.message}</p>
-        <p>Make sure the API server is running at ${API_BASE_URL}</p>
-      </div>
-    `;
+    logger.error('Error loading staff data', { error: error.message });
+    showToast('Failed to load staff data', 'error');
   }
 }
 
-// Display staff grouped by rank
-function displayStaffByRank(staffData) {
-  if (!staffData || staffData.length === 0) {
-    resultsContainer.innerHTML = `
-      <div class="empty-state">
-        <p>No staff members found</p>
-      </div>
-    `;
-    return;
-  }
-  
-  // Group staff by rank
-  const staffByRank = {};
-  
-  // Initialize the object with empty arrays for all ranks
-  STAFF_RANKS.forEach(rank => {
-    staffByRank[rank] = [];
-  });
-  
-  // Populate the groups
-  staffData.forEach(staff => {
-    if (staff.rank && staffByRank.hasOwnProperty(staff.rank)) {
-      staffByRank[staff.rank].push(staff);
-    } else {
-      // Add to "Other" category for ranks not in our list
-      if (!staffByRank.hasOwnProperty('Other')) {
-        staffByRank['Other'] = [];
-      }
-      staffByRank['Other'].push(staff);
-    }
-  });
-  
-  // Build the HTML
-  let resultsHTML = '';
-  
-  // Add each rank section in order
-  STAFF_RANKS.forEach(rank => {
-    const staffInRank = staffByRank[rank];
-    if (staffInRank && staffInRank.length > 0) {
-      resultsHTML += `
-        <div class="rank-group">
-          <div class="rank-group-header">${rank} (${staffInRank.length})</div>
-          ${staffInRank.map(staff => createStaffCard(staff)).join('')}
-        </div>
-      `;
-    }
-  });
-  
-  // Add any "Other" category at the end
-  if (staffByRank.hasOwnProperty('Other') && staffByRank['Other'].length > 0) {
-    resultsHTML += `
-      <div class="rank-group">
-        <div class="rank-group-header">Other (${staffByRank['Other'].length})</div>
-        ${staffByRank['Other'].map(staff => createStaffCard(staff)).join('')}
-      </div>
-    `;
-  }
-  
-  resultsContainer.innerHTML = resultsHTML;
-  
-  // Add click event to staff cards
-  document.querySelectorAll('.staff-card').forEach(card => {
-    card.addEventListener('click', () => {
-      const staffId = card.dataset.id;
-      openStaffDetails(staffId);
-    });
-  });
-}
-
-// Check API connection status
 async function checkApiConnection() {
   try {
-    const response = await fetch(`${API_BASE_URL}/health-check`);
-    
+    const startTime = performance.now();
+    const response = await fetch(`${API_BASE_URL}/health-check`, {
+      method: 'GET',
+      headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+      mode: 'cors'
+    });
     if (response.ok) {
       updateConnectionStatus('connected', 'Connected');
+      logger.logApiCall('/health-check', 'GET', response.status, performance.now() - startTime);
     } else {
       updateConnectionStatus('error', 'API Error');
+      logger.error('API health check failed', { status: response.status });
     }
   } catch (error) {
     updateConnectionStatus('error', 'Disconnected');
-    console.error('API connection error:', error);
+    logger.error('API connection error', { error: error.message });
   }
 }
 
-// Update connection status UI
 function updateConnectionStatus(state, text) {
   connectionStatus.className = `connection-status ${state}`;
   statusText.textContent = text;
 }
 
-// Switch between tabs
+// -----------------------
+// Tab & Search Functions
+// -----------------------
 function switchTab(tabName) {
   activeTab = tabName;
-  
-  // Update tab buttons
-  tabButtons.forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.tab === tabName);
-  });
-  
-  // Update tab content
+  tabButtons.forEach(btn => btn.classList.toggle('active', btn.dataset.tab === tabName));
   tabContents.forEach(content => {
     const isActive = content.id === `${tabName}Tab`;
     content.classList.toggle('active', isActive);
   });
-  
-  // Load tab-specific data
   if (tabName === 'promotions') {
     loadEligiblePromotions();
   } else if (tabName === 'search') {
-    // If search field is empty, show all staff by rank
     if (!searchInput.value.trim()) {
       displayStaffByRank(allStaffData);
     }
+  } else if (tabName === 'logs') {
+    // Only load logs when the Logs tab is active.
+    loadLogsFromApi();
   }
+  logger.info(`Switched to ${tabName} tab`);
 }
 
-// Handle search input
 async function handleSearch() {
   const query = searchInput.value.trim();
-  
-  // If query is empty, show all staff by rank
   if (!query) {
     displayStaffByRank(allStaffData);
     return;
   }
-  
-  // If query is too short, show message
   if (query.length < 2) {
     resultsContainer.innerHTML = `
       <div class="empty-state">
@@ -266,88 +239,65 @@ async function handleSearch() {
           <path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z"/>
         </svg>
         <p>Enter at least 2 characters to search</p>
-      </div>
-    `;
+      </div>`;
     return;
   }
-  
   try {
     resultsContainer.innerHTML = `
       <div class="loading">
         <div class="spinner"></div>
         <p>Searching...</p>
-      </div>
-    `;
-    
+      </div>`;
+    const startTime = performance.now();
     const response = await fetch(`${API_BASE_URL}/staff/search?q=${encodeURIComponent(query)}`);
-    
-    if (!response.ok) {
-      throw new Error('Search request failed');
-    }
-    
+    if (!response.ok) throw new Error('Search request failed');
     const results = await response.json();
+    logger.logApiCall('/staff/search', 'GET', response.status, performance.now() - startTime, {
+      query,
+      resultCount: results.length
+    });
     displaySearchResults(results);
   } catch (error) {
+    logger.error('Search error', { error: error.message });
     resultsContainer.innerHTML = `
       <div class="empty-state">
         <p>Error searching staff members: ${error.message}</p>
-      </div>
-    `;
-    console.error('Search error:', error);
+      </div>`;
   }
 }
 
-// Display search results
 function displaySearchResults(results) {
   if (!results || results.length === 0) {
     resultsContainer.innerHTML = `
       <div class="empty-state">
         <p>No staff members found</p>
-      </div>
-    `;
+      </div>`;
     return;
   }
-  
   const resultsHTML = results.map(staff => createStaffCard(staff)).join('');
-  
   resultsContainer.innerHTML = `
     <div class="rank-group">
       <div class="rank-group-header">Search Results (${results.length})</div>
       ${resultsHTML}
-    </div>
-  `;
-  
-  // Add click event to staff cards
-  document.querySelectorAll('.staff-card').forEach(card => {
-    card.addEventListener('click', () => {
-      const staffId = card.dataset.id;
-      openStaffDetails(staffId);
-    });
-  });
+    </div>`;
+  document.querySelectorAll('.staff-card').forEach(card =>
+    card.addEventListener('click', () => openStaffDetails(card.dataset.id))
+  );
 }
 
-// Create HTML for a staff card
 function createStaffCard(staff) {
-  // Create badges
   const badges = [];
-  
   if (staff.strike1 || staff.strike2 || staff.strike3) {
     const strikeCount = (staff.strike1 ? 1 : 0) + (staff.strike2 ? 1 : 0) + (staff.strike3 ? 1 : 0);
     badges.push(`<span class="badge strike-badge">${strikeCount} Strike${strikeCount > 1 ? 's' : ''}</span>`);
   }
-  
   if (staff.watchlist) {
     badges.push(`<span class="badge watchlist-badge">Watchlist</span>`);
   }
-  
   if (staff.purgatory) {
     badges.push(`<span class="badge purgatory-badge">Purgatory</span>`);
   }
-  
-  const badgesHTML = badges.length > 0 
-    ? `<div class="staff-badges">${badges.join('')}</div>` 
-    : '';
-  
+  const badgesHTML = badges.length > 0 ? `<div class="staff-badges">${badges.join('')}</div>` : '';
   return `
     <div class="staff-card" data-id="${staff.id}">
       <div class="staff-card-header">
@@ -359,234 +309,223 @@ function createStaffCard(staff) {
         <div>Promoted: ${formatDate(staff.datePromoted)}</div>
       </div>
       ${badgesHTML}
-    </div>
-  `;
+    </div>`;
 }
 
-// Load eligible promotions
+function displayStaffByRank(staffData) {
+  if (!staffData || staffData.length === 0) {
+    resultsContainer.innerHTML = `
+      <div class="empty-state">
+        <p>No staff members found</p>
+      </div>`;
+    return;
+  }
+  // Group staff by rank
+  const staffByRank = {};
+  STAFF_RANKS.forEach(rank => (staffByRank[rank] = []));
+  staffData.forEach(staff => {
+    if (staff.rank && staffByRank.hasOwnProperty(staff.rank)) {
+      staffByRank[staff.rank].push(staff);
+    } else {
+      staffByRank['Other'] = staffByRank['Other'] || [];
+      staffByRank['Other'].push(staff);
+    }
+  });
+  let resultsHTML = '';
+  STAFF_RANKS.forEach(rank => {
+    const staffInRank = staffByRank[rank];
+    if (staffInRank && staffInRank.length > 0) {
+      resultsHTML += `
+        <div class="rank-group">
+          <div class="rank-group-header">${rank} (${staffInRank.length})</div>
+          ${staffInRank.map(staff => createStaffCard(staff)).join('')}
+        </div>`;
+    }
+  });
+  if (staffByRank['Other'] && staffByRank['Other'].length > 0) {
+    resultsHTML += `
+      <div class="rank-group">
+        <div class="rank-group-header">Other (${staffByRank['Other'].length})</div>
+        ${staffByRank['Other'].map(staff => createStaffCard(staff)).join('')}
+      </div>`;
+  }
+  resultsContainer.innerHTML = resultsHTML;
+  document.querySelectorAll('.staff-card').forEach(card =>
+    card.addEventListener('click', () => openStaffDetails(card.dataset.id))
+  );
+}
+
+// -----------------------
+// Logs Loading (via API)
+// -----------------------
+async function loadLogsFromApi() {
+  try {
+    const startTime = performance.now();
+    const response = await fetch(`${API_BASE_URL}/logs`);
+    if (!response.ok) throw new Error('Failed to load logs');
+    const logs = await response.json();
+    logger.logApiCall('/logs', 'GET', response.status, performance.now() - startTime);
+    logsContent.innerHTML = logs
+      .map(log => `
+        <div class="log-entry ${log.level.toLowerCase()}">
+          <div class="log-entry-header">
+            <span>${new Date(log.timestamp).toLocaleString()}</span>
+            <span>${log.level}</span>
+          </div>
+          <div class="log-entry-message">${log.message}</div>
+          ${log.data ? `<div class="log-entry-data">${JSON.stringify(log.data, null, 2)}</div>` : ''}
+        </div>
+      `)
+      .join('');
+    logsContent.scrollTop = logsContent.scrollHeight;
+  } catch (error) {
+    logger.error('Error loading logs from API', { error: error.message });
+    logsContent.innerHTML = `
+      <div class="empty-state">
+        <p>Error loading logs: ${error.message}</p>
+      </div>`;
+  }
+}
+
+// -----------------------
+// Promotions Loading
+// -----------------------
 async function loadEligiblePromotions() {
   try {
     promotionsContainer.innerHTML = `
       <div class="loading">
         <div class="spinner"></div>
         <p>Loading eligible promotions...</p>
-      </div>
-    `;
-    
-    console.log('Attempting to fetch eligible promotions from:', `${API_BASE_URL}/eligible-promotions`);
-    
-    const response = await fetch(`${API_BASE_URL}/eligible-promotions`, {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json'
-      }
-    });
-    
-    console.log('Eligible promotions response status:', response.status);
-    
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('API error response:', errorText);
-      throw new Error(`API returned status ${response.status}: ${errorText}`);
-    }
-    
+      </div>`;
+    const startTime = performance.now();
+    const response = await fetch(`${API_BASE_URL}/eligible-promotions`);
+    if (!response.ok) throw new Error('Failed to load eligible promotions');
     const eligibleStaff = await response.json();
-    console.log('Received eligible promotions data:', eligibleStaff);
+    logger.logApiCall('/eligible-promotions', 'GET', response.status, performance.now() - startTime);
     displayEligiblePromotions(eligibleStaff);
   } catch (error) {
-    console.error('Detailed error loading eligible promotions:', error);
+    logger.error('Error loading eligible promotions', { error: error.message });
     promotionsContainer.innerHTML = `
       <div class="empty-state">
         <p>Error loading eligible promotions: ${error.message}</p>
         <p>Please check the console for more details.</p>
-      </div>
-    `;
+      </div>`;
   }
 }
 
-// Display eligible promotions
 function displayEligiblePromotions(eligibleStaff) {
   if (!eligibleStaff || Object.keys(eligibleStaff).length === 0) {
     promotionsContainer.innerHTML = `
       <div class="empty-state">
-        <p>No staff members eligible for promotion</p>
-      </div>
-    `;
+        <p>No staff members are currently eligible for promotion</p>
+      </div>`;
     return;
   }
-  
   let promotionsHTML = '';
-  
-  // For each rank with eligible staff
-  for (const [rank, staffList] of Object.entries(eligibleStaff)) {
-    if (staffList.length === 0) continue;
-    
-    promotionsHTML += `
-      <div class="promotion-group">
-        <div class="promotion-group-header">Eligible for ${rank}</div>
-        ${staffList.map(staff => createStaffCard(staff)).join('')}
-      </div>
-    `;
-  }
-  
-  promotionsContainer.innerHTML = promotionsHTML;
-  
-  // Add click event to staff cards
-  promotionsContainer.querySelectorAll('.staff-card').forEach(card => {
-    card.addEventListener('click', () => {
-      const staffId = card.dataset.id;
-      openStaffDetails(staffId);
-    });
+  Object.entries(eligibleStaff).forEach(([targetRank, staffList]) => {
+    if (staffList.length > 0) {
+      promotionsHTML += `
+        <div class="promotion-group">
+          <div class="promotion-group-header">${targetRank} (${staffList.length})</div>
+          ${staffList.map(staff => createStaffCard(staff)).join('')}
+        </div>`;
+    }
   });
+  promotionsContainer.innerHTML = promotionsHTML;
+  document.querySelectorAll('.staff-card').forEach(card =>
+    card.addEventListener('click', () => openStaffDetails(card.dataset.id))
+  );
 }
 
-// Open staff details modal
+// -----------------------
+// Staff Details & Update
+// -----------------------
 async function openStaffDetails(staffId) {
   try {
-    // Show loading in modal
-    staffModal.classList.add('active');
-    modalStaffName.textContent = 'Loading...';
-    
-    // Fetch staff details
+    const startTime = performance.now();
     const response = await fetch(`${API_BASE_URL}/staff/${staffId}`);
-    
-    if (!response.ok) {
-      throw new Error('Failed to load staff details');
-    }
-    
-    const staffMember = await response.json();
-    currentStaffMember = staffMember;
-    
-    // Populate form
-    populateStaffForm(staffMember);
+    if (!response.ok) throw new Error('Failed to load staff details');
+    const staff = await response.json();
+    logger.logApiCall(`/staff/${staffId}`, 'GET', response.status, performance.now() - startTime);
+    currentStaffMember = staff;
+    // Populate form fields
+    staffIdField.value = staff.id;
+    modalStaffName.textContent = staff.name;
+    staffDiscordId.value = staff.discordId;
+    staffRank.value = staff.rank;
+    staffDatePromoted.value = staff.datePromoted;
+    staffStrike1.checked = staff.strike1;
+    staffStrike1Date.value = staff.strike1Date;
+    staffStrike2.checked = staff.strike2;
+    staffStrike2Date.value = staff.strike2Date;
+    staffStrike3.checked = staff.strike3;
+    staffStrike3Date.value = staff.strike3Date;
+    staffWatchlist.checked = staff.watchlist;
+    staffWatchlistReason.value = staff.watchlistReason;
+    staffPurgatory.checked = staff.purgatory;
+    staffModal.classList.add('active');
+    updateWatchlistReasonVisibility();
   } catch (error) {
+    logger.error('Error opening staff details', { error: error.message });
+    showToast('Failed to load staff details', 'error');
+  }
+}
+
+async function saveStaffMember() {
+  if (!currentStaffMember) return;
+  try {
+    const startTime = performance.now();
+    const response = await fetch(`${API_BASE_URL}/staff/${currentStaffMember.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ...currentStaffMember,
+        name: modalStaffName.textContent,
+        discordId: staffDiscordId.value,
+        rank: staffRank.value,
+        datePromoted: staffDatePromoted.value,
+        strike1: staffStrike1.checked,
+        strike1Date: staffStrike1.checked ? staffStrike1Date.value : null,
+        strike2: staffStrike2.checked,
+        strike2Date: staffStrike2.checked ? staffStrike2Date.value : null,
+        strike3: staffStrike3.checked,
+        strike3Date: staffStrike3.checked ? staffStrike3Date.value : null,
+        watchlist: staffWatchlist.checked,
+        watchlistReason: staffWatchlist.checked ? staffWatchlistReason.value : '',
+        purgatory: staffPurgatory.checked
+      })
+    });
+    if (!response.ok) throw new Error('Failed to save staff details');
+    const updatedStaff = await response.json();
+    logger.logApiCall(`/staff/${currentStaffMember.id}`, 'PUT', response.status, performance.now() - startTime);
+    logger.logStaffUpdate(currentStaffMember.id, updatedStaff);
+    const staffCard = document.querySelector(`.staff-card[data-id="${currentStaffMember.id}"]`);
+    if (staffCard) {
+      staffCard.outerHTML = createStaffCard(updatedStaff);
+      staffCard.addEventListener('click', () => openStaffDetails(currentStaffMember.id));
+    }
     closeModal();
-    alert(`Error loading staff details: ${error.message}`);
-    console.error('Error loading staff details:', error);
+    showToast('Staff details saved successfully', 'success');
+  } catch (error) {
+    logger.error('Error saving staff details', { error: error.message });
+    showToast('Failed to save staff details', 'error');
   }
 }
 
-// Populate staff form with data
-function populateStaffForm(staff) {
-  modalStaffName.textContent = staff.name;
-  staffId.value = staff.id;
-  staffDiscordId.value = staff.discordId;
-  staffRank.value = staff.rank;
-  staffDatePromoted.value = staff.datePromoted;
-  
-  // Strikes
-  staffStrike1.checked = staff.strike1;
-  staffStrike1Date.value = staff.strike1Date || '';
-  staffStrike1Date.disabled = !staff.strike1;
-  
-  staffStrike2.checked = staff.strike2;
-  staffStrike2Date.value = staff.strike2Date || '';
-  staffStrike2Date.disabled = !staff.strike2;
-  
-  staffStrike3.checked = staff.strike3;
-  staffStrike3Date.value = staff.strike3Date || '';
-  staffStrike3Date.disabled = !staff.strike3;
-  
-  // Watchlist and Purgatory
-  staffWatchlist.checked = staff.watchlist;
-  staffWatchlistReason.value = staff.watchlistReason || '';
-  updateWatchlistReasonVisibility();
-  
-  staffPurgatory.checked = staff.purgatory;
-}
-
-// Toggle date input based on checkbox
-function toggleDateInput(checkbox, dateInput) {
-  dateInput.disabled = !checkbox.checked;
-  if (checkbox.checked && !dateInput.value) {
-    dateInput.value = new Date().toISOString().split('T')[0];
-  }
-}
-
-// Update watchlist reason visibility
 function updateWatchlistReasonVisibility() {
   watchlistReasonGroup.style.display = staffWatchlist.checked ? 'block' : 'none';
 }
 
-// Save staff changes
-async function saveStaffChanges() {
-  try {
-    // Show saving indicator
-    saveStaffBtn.textContent = 'Saving...';
-    saveStaffBtn.disabled = true;
-    
-    // Collect form data
-    const updatedStaffMember = {
-      id: staffId.value,
-      name: currentStaffMember.name, // Keep the name unchanged
-      discordId: staffDiscordId.value,
-      rank: staffRank.value,
-      datePromoted: staffDatePromoted.value,
-      strike1: staffStrike1.checked,
-      strike1Date: staffStrike1.checked ? staffStrike1Date.value : null,
-      strike2: staffStrike2.checked,
-      strike2Date: staffStrike2.checked ? staffStrike2Date.value : null,
-      strike3: staffStrike3.checked,
-      strike3Date: staffStrike3.checked ? staffStrike3Date.value : null,
-      watchlist: staffWatchlist.checked,
-      watchlistReason: staffWatchlist.checked ? staffWatchlistReason.value : '',
-      purgatory: staffPurgatory.checked
-    };
-    
-    // Send update request
-    const response = await fetch(`${API_BASE_URL}/staff/${updatedStaffMember.id}`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(updatedStaffMember)
-    });
-    
-    if (!response.ok) {
-      throw new Error('Failed to update staff member');
-    }
-    
-    // Update the staff data in memory
-    const updatedStaff = await response.json();
-    
-    // Find and update the staff member in allStaffData
-    const index = allStaffData.findIndex(staff => staff.id === updatedStaff.id);
-    if (index !== -1) {
-      allStaffData[index] = updatedStaff;
-    }
-    
-    // Refresh current view
-    if (activeTab === 'search') {
-      if (searchInput.value.trim().length >= 2) {
-        handleSearch();
-      } else {
-        displayStaffByRank(allStaffData);
-      }
-    } else if (activeTab === 'promotions') {
-      loadEligiblePromotions();
-    }
-    
-    closeModal();
-  } catch (error) {
-    alert(`Error saving changes: ${error.message}`);
-    console.error('Error saving changes:', error);
-  } finally {
-    saveStaffBtn.textContent = 'Save Changes';
-    saveStaffBtn.disabled = false;
-  }
-}
-
-// Close the modal
 function closeModal() {
   staffModal.classList.remove('active');
   currentStaffMember = null;
 }
 
-// Utility: Format date for display
+// -----------------------
+// Utility Functions
+// -----------------------
 function formatDate(dateString) {
   if (!dateString) return 'N/A';
-  
   const date = new Date(dateString);
   return new Intl.DateTimeFormat('en-US', {
     year: 'numeric',
@@ -595,11 +534,92 @@ function formatDate(dateString) {
   }).format(date);
 }
 
-// Utility: Debounce function
 function debounce(func, wait) {
   let timeout;
-  return function(...args) {
+  return function (...args) {
     clearTimeout(timeout);
     timeout = setTimeout(() => func.apply(this, args), wait);
   };
-} 
+}
+
+function showToast(message, type = 'info') {
+  document.querySelectorAll('.toast').forEach(toast => toast.remove());
+  const toast = document.createElement('div');
+  toast.className = `toast ${type}`;
+  const toastContent = document.createElement('div');
+  toastContent.className = 'toast-content';
+  const iconEl = document.createElement('span');
+  iconEl.className = 'material-icons toast-icon';
+  iconEl.textContent = type === 'success' ? 'check_circle' : type === 'error' ? 'error' : 'info';
+  const messageEl = document.createElement('span');
+  messageEl.className = 'toast-message';
+  messageEl.textContent = message;
+  const closeBtn = document.createElement('button');
+  closeBtn.className = 'toast-close';
+  const closeIcon = document.createElement('span');
+  closeIcon.className = 'material-icons';
+  closeIcon.textContent = 'close';
+  closeBtn.appendChild(closeIcon);
+  toastContent.appendChild(iconEl);
+  toastContent.appendChild(messageEl);
+  toast.appendChild(toastContent);
+  toast.appendChild(closeBtn);
+  document.body.appendChild(toast);
+  setTimeout(() => toast.classList.add('show'), 10);
+  const hideTimeout = setTimeout(() => hideToast(toast), 5000);
+  closeBtn.addEventListener('click', () => {
+    clearTimeout(hideTimeout);
+    hideToast(toast);
+  });
+}
+
+function hideToast(toast) {
+  toast.classList.remove('show');
+  setTimeout(() => {
+    if (toast.parentNode) toast.parentNode.removeChild(toast);
+  }, 300);
+}
+
+// -----------------------
+// Settings Functions
+// -----------------------
+function saveSettings() {
+  const settings = {
+    apiUrl: apiUrlInput.value,
+    showStrikes: showStrikesCheckbox.checked,
+    showWatchlist: showWatchlistCheckbox.checked,
+    showPurgatory: showPurgatoryCheckbox.checked,
+    logLevel: logLevelSelect.value
+  };
+  chrome.storage.sync.set({ settings }, () => {
+    API_BASE_URL = settings.apiUrl;
+    logger.setLogLevel(settings.logLevel);
+    settingsModal.style.display = 'none';
+    logger.logModalAction('settings', 'save');
+    refreshData();
+  });
+}
+
+function refreshData() {
+  initializeApp();
+}
+
+// -----------------------
+// Load Settings from Storage
+// -----------------------
+chrome.storage.sync.get(['settings'], result => {
+  const settings = result.settings || {
+    apiUrl: 'http://localhost:3001/api',
+    showStrikes: true,
+    showWatchlist: true,
+    showPurgatory: true,
+    logLevel: 'INFO'
+  };
+  apiUrlInput.value = settings.apiUrl;
+  showStrikesCheckbox.checked = settings.showStrikes;
+  showWatchlistCheckbox.checked = settings.showWatchlist;
+  showPurgatoryCheckbox.checked = settings.showPurgatory;
+  logLevelSelect.value = settings.logLevel;
+  API_BASE_URL = settings.apiUrl;
+  logger.setLogLevel(settings.logLevel);
+});
